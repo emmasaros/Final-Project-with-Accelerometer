@@ -1,6 +1,36 @@
+//Accelerometer Part
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_ADXL345_U.h>
+
+//SD Music Part
+#include <Audio.h>
+#include <Wire.h>
+#include <SPI.h>
+#include <SD.h>
+#include <SerialFlash.h>
+
+AudioPlaySdWav           playWav1;
+AudioOutputAnalog      audioOutput;
+AudioConnection          patchCord1(playWav1, 0, audioOutput, 0);
+AudioConnection          patchCord2(playWav1, 1, audioOutput, 1);
+
+#define SDCARD_CS_PIN   BUILTIN_SDCARD
+#define SDCARD_MOSI_PIN  11
+#define SDCARD_SCK_PIN   13
+
+
+//NeoPixel Part
+#include <Adafruit_NeoPixel.h>
+#ifdef __AVR__
+  #include <avr/power.h>
+#endif
+#define PIN            14
+#define NUMPIXELS      8
+Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_RGBW);
+int delayval = 50;
+
+
 
 float accelVector;
 float lastAccelVector;
@@ -27,6 +57,10 @@ Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
+  
+  pixels.begin(); // This initializes the NeoPixel library.
+
+  AudioMemory(8);
   /* Initialise the sensor */
   if (!accel.begin())
   {
@@ -38,11 +72,31 @@ void setup() {
   /* Set the range to whatever is appropriate for your project */
   accel.setRange(ADXL345_RANGE_16_G);
 
-  pinMode(ledPin, OUTPUT);
-  pinMode(ledPin1, OUTPUT);
-  pinMode(ledPin2, OUTPUT);
+  if (!(SD.begin(BUILTIN_SDCARD))) {
+      // stop here, but print a message repetitively
+      while (1) {
+        Serial.println("Unable to access the SD card");
+        delay(500);
+      }
+    }
+    
+}
+
+void playFile(const char *filename)
+{
+  Serial.print("Playing file: ");
+  Serial.println(filename);
+
+  // Start playing the file.  This sketch continues to
+  // run while the file plays.
+  playWav1.play(filename);
+
+  // A brief delay for the library read WAV info
+  delay(5);
 
 }
+
+
 
 void loop() {
   // put your main code here, to run repeatedly:
@@ -53,7 +107,6 @@ void loop() {
     tenCounterX += event.acceleration.x;
     tenCounterY += event.acceleration.y;
     tenCounterZ += event.acceleration.z;
-    //    delay(1);
   }
 
   xAverage = tenCounterX / 10000.0;
@@ -79,23 +132,57 @@ void loop() {
 
   if (millis() > lastStepTime + stepLength) {
 
+    //human is still
     if (peakValue < 3) {
-      digitalWrite(ledPin, HIGH);
-      digitalWrite(ledPin1, LOW);
-      digitalWrite(ledPin2, LOW);
+        for(int i=0;i<NUMPIXELS;i++){
+  
+            // pixels.Color takes GRB values, from 0,0,0 up to 255,255,255
+            pixels.setPixelColor(i, pixels.Color(0,100,0)); // Moderately bright green color.
+        
+            pixels.show(); // This sends the updated pixel color to the hardware.
+        
+            delay(delayval); // Delay for a period of time (in milliseconds).
+  
+    }
+        if (playWav1.isPlaying() == false) {
+        playFile("SDTEST3.WAV");
+      }
     }
 
+    //human is walking
     //peakValue check
     if (peakValue >= 3 && peakValue <= 25) {
-      digitalWrite(ledPin, LOW);
-      digitalWrite(ledPin1, HIGH);
-      digitalWrite(ledPin2, LOW);
+      for(int i=0;i<NUMPIXELS;i++){
+
+          // pixels.Color takes GRB values, from 0,0,0 up to 255,255,255
+          pixels.setPixelColor(i, pixels.Color(50,50,0)); // Moderately bright green color.
+      
+          pixels.show(); // This sends the updated pixel color to the hardware.
+      
+          delay(delayval); // Delay for a period of time (in milliseconds).
+      
+        }
+        if (playWav1.isPlaying() == true) {
+          playFile("SDTEST1.WAV");
+        }
     }
+
+    //human is running
     //peakValue check
     if (peakValue > 25) {
-      digitalWrite(ledPin, LOW);
-      digitalWrite(ledPin1, LOW);
-      digitalWrite(ledPin2, HIGH);
+        for(int i=0;i<NUMPIXELS;i++){
+
+          // pixels.Color takes GRB values, from 0,0,0 up to 255,255,255
+          pixels.setPixelColor(i, pixels.Color(0,0,150)); // Moderately bright green color.
+      
+          pixels.show(); // This sends the updated pixel color to the hardware.
+      
+          delay(delayval); // Delay for a period of time (in milliseconds).
+      
+        }
+        if (playWav1.isPlaying() == true) {
+          playFile("SDTEST2.WAV");
+        }
     }
 
 
@@ -112,8 +199,6 @@ void loop() {
 
 
 //start reading button?
-//sd card insertion and application
-//add audio jack
 //switch to neopixels
 //perfboard and plastic box
 
